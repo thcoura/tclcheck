@@ -5,12 +5,10 @@ else
     let b:did_frink_plugin = 1
 endif
 
-python << EOF
-import subprocess
-import os
-import re
-messages = {}
-EOF
+let s:this_path = escape(expand('<sfile>:p:h'), '\ ')
+silent exec 'tcl set this_path ' . s:this_path 
+
+
 
 if !exists("*s:RunTclCheck")
     function! s:RunTclCheck()
@@ -22,31 +20,24 @@ if !exists("*s:RunTclCheck")
         cd c:/nagelfar
         let s:qflist = []
         call setqflist([])
-python << EOF
-messages = {}
-# FIXME using a temp file is slow, maybe use a modified nagelfar.tcl in vim's interpreter?
-fname = vim.eval('tempname()')
-with open(fname, 'w') as f:
-    f.write('\n'.join(vim.current.buffer))
-f.close()
-out = subprocess.check_output(['c:/user/Tcl/runtime/ptcl-1603/bin/ptclsh86t.exe', 'nagelfar.tcl', fname], stderr=subprocess.STDOUT, shell=True)
-subprocess.call(['rm', fname], shell=True)
-
-for ln in out.split('\n'):
-    if re.search('Unknown command', ln) is None: # don't do these
-        if re.match('Line', ln):
-            line_no_match = re.search('\d*:', ln)
-            msg_match = re.search(': .*$', ln)
-
-            if line_no_match is not None:                         
-                start, end = line_no_match.start(), line_no_match.end()-1
-                line_no = ln[start:end]
-                vim.command(r"let s:mID = matchadd('TclCheck', '\%" + line_no + r"l\S.*$')")
-                if msg_match is not None:
-                    msg = ln[msg_match.start()+2:msg_match.end()].rstrip(chr(13))
-                    messages[line_no] = msg
-                    vim.command("let s:qflist += [{'bufnr': winbufnr('.'), 'lnum': %s, 'col': 1, 'text': '%s'}]" % (line_no, msg))
-EOF
+        silent exec 'tcl set buf [::vim::buffer ' . winbufnr('.') . ']'
+tcl << end_tcl
+set messages {}
+# FIXME 
+set out [synCheck [join [$buf get 1 end] \n] "${this_path}\\syntaxdb.tcl"]
+foreach ln $out {
+  if {![string match "*Unknown command*" $ln]} {
+    if {[string match "*Line*" $ln]} {
+      regexp {(?:Line\s+)(\d+)(?::)} $ln -> line_no
+      regexp {(?::\s)(.*$)} $ln -> msg
+      set match_expr "\\%${line_no}l\\S.*$" 
+      ::vim::command "let s:mID = matchadd('TclCheck', '${match_expr}')"
+      ::vim::command -quiet "let s:qflist += \[{'bufnr': winbufnr('.'), 'lnum': $line_no, 'col': 1, 'text': '$msg'}\]" 
+      dict set messages $line_no $msg
+    }
+  }
+}
+end_tcl
         call setqflist(s:qflist)
         exec 'cd ' . this_dir
     endfunction
@@ -61,10 +52,15 @@ endif
 
 if !exists("*s:GetTclCheckMessages")
     function! s:GetTclCheckMessages()
-python << EOF
-if messages:
-    line_no = vim.eval('line(".")')
-    print messages.get(line_no, '')
+tcl << EOF
+if {[info exists messages]} {
+    set line_no [::vim::expr "line('.')"]
+    if {[dict exists $messages $line_no]} {
+        puts [dict get $messages $line_no]
+    } else {
+        puts {}
+    }
+}
 EOF
     endfunction
 endif
