@@ -5,12 +5,12 @@ else
     let b:did_frink_plugin = 1
 endif
 
-let s:this_path = escape(expand('<sfile>:p:h'), '\ ')
-silent exec 'tcl set this_path ' . s:this_path 
+"let s:this_path = escape(expand('<sfile>:p:h'), '\ ')
+"silent exec 'tcl set this_path ' . s:this_path 
 
 
 
-if !exists("*s:RunTclCheck")
+"if !exists("*s:RunTclCheck")
     function! s:RunTclCheck()
         highlight link TclCheck SpellBad
         "highlight link TclCheck ToDo
@@ -33,6 +33,10 @@ foreach ln $out {
       set match_expr "\\%${line_no}l\\S.*$" 
       ::vim::command "let s:mID = matchadd('TclCheck', '${match_expr}')"
       ::vim::command -quiet "let s:qflist += \[{'bufnr': winbufnr('.'), 'lnum': $line_no, 'col': 1, 'text': '$msg'}\]" 
+      set _msg [split $msg \n]
+      set msg {}
+      foreach m $_msg { lappend msg [string trimright [string trimleft $m]] }
+      set msg [join $msg " | "]
       dict set messages $line_no $msg
     }
   }
@@ -41,7 +45,7 @@ end_tcl
         call setqflist(s:qflist)
         exec 'cd ' . this_dir
     endfunction
-endif
+"endif
 
 if !exists("*s:TclCheckUpdate")
     function! s:TclCheckUpdate()

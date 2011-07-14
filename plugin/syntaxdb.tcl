@@ -938,5 +938,5 @@ set {::syntax(test heading)} 1
 set {::syntax(test expect_ok)} 1
 set {::syntax(test expect_er)} 1
 set {::syntax(test pass)} {}
-set {::syntax(test fail)} {}
+set {::syntax(test fail)} {x*}
 
