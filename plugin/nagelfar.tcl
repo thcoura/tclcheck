@@ -3266,45 +3266,6 @@ proc parseScript {script} {
     }
 }
 
-# Parse a file
-proc parseFile {filename} {
-if {0} {
-    set ch [open $filename]
-    if {[info exists ::Nagelfar(encoding)] && \
-            $::Nagelfar(encoding) ne "system"} {
-        fconfigure $ch -encoding $::Nagelfar(encoding)
-    }
-    set script [read $ch]
-    close $ch
-}
-    # FIXME
-    set script {set a}
-
-    # Check for Ctrl-Z
-    set i [string first \u001a $script]
-    if {$i >= 0} {
-        # Cut off the script as source would do
-        set script [string range $script 0 [expr {$i - 1}]]
-    }
-
-    array unset ::instrumenting
-
-    initMsg
-    parseScript $script
-    if {$i >= 0} {
-        # Add a note about the Ctrl-Z
-        errorMsg N "Aborted script due to end-of-file marker" \
-                [expr {[string length $::instrumenting(script)] - 1}]
-    }
-    flushMsg
-    
-    if {$::Nagelfar(instrument) && \
-            [file extension $filename] ne ".syntax"} {
-        # Experimental instrumenting
-        dumpInstrumenting $filename
-    }
-}
-
 # Find an element that is less than or equal, in a decreasing sorted list
 proc binSearch {sortedList ix} {
     # Shortcut for exact match
