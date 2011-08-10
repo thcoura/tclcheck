@@ -1,38 +1,69 @@
 
-if exists("b:did_tclCheck_plugin")
+if exists("b:did_tclCheck_ftplugin")
     finish " only load once
 else
-    let b:did_frink_plugin = 1
+    let b:did_tclCheck_ftplugin = 1
 endif
 
-"let s:this_path = escape(expand('<sfile>:p:h'), '\ ')
-"silent exec 'tcl set this_path ' . s:this_path 
 
+if !exists('s:enabled')
+    let s:enabled = 1
+endif
 
+sign define TclCheckWarn text=W
+sign define TclCheckN text=N
 
-"if !exists("*s:RunTclCheck")
+sign define TclCheckErr linehl=TclCheckErr
+
+if !exists("*s:RunTclCheck")
     function! s:RunTclCheck()
-        highlight link TclCheck SpellBad
+        if &background == "dark"
+            hi TclCheckErr guibg=#440010
+        else
+            hi TclCheckErr guibg=#E08888
+        endif
+        if !s:enabled
+            return
+        endif
         "highlight link TclCheck ToDo
         "hi TclCheck guibg=#888888
         call clearmatches()
-        let this_dir = getcwd()
-        cd c:/nagelfar
         let s:qflist = []
         call setqflist([])
-        silent exec 'tcl set buf [::vim::buffer ' . winbufnr('.') . ']'
+        let buf_no = winbufnr('.')
+        silent exec "tcl set buf_no " . buf_no
+        sign unplace *
 tcl << end_tcl
+set buf [::vim::buffer $buf_no]
 set messages {}
 # FIXME 
 set out [synCheck [join [$buf get 1 end] \n] "${this_path}\\syntaxdb.tcl"]
+set sign_no 1
+set err_lines {}
 foreach ln $out {
   if {![string match "*Unknown command*" $ln]} {
     if {[string match "*Line*" $ln]} {
       regexp {(?:Line\s+)(\d+)(?::)} $ln -> line_no
       regexp {(?::\s)(.*$)} $ln -> msg
       set match_expr "\\%${line_no}l\\S.*$" 
-      ::vim::command "let s:mID = matchadd('TclCheck', '${match_expr}')"
+      #::vim::command "let s:mID = matchadd('TclCheck', '${match_expr}')"
       ::vim::command -quiet "let s:qflist += \[{'bufnr': winbufnr('.'), 'lnum': $line_no, 'col': 1, 'text': '$msg'}\]" 
+      if {[string match "W *" $msg]} {
+        ::vim::command "sign place $sign_no line=$line_no name=TclCheckWarn buffer=$buf_no"
+      } elseif {[string match "N *" $msg]} {
+        ::vim::command "sign place $sign_no line=$line_no name=TclCheckN buffer=$buf_no"
+      } elseif {[string match "E *" $msg]} {
+        ::vim::command "sign place $sign_no line=$line_no name=TclCheckErr buffer=$buf_no"
+        lappend err_lines $line_no
+      }
+      incr sign_no
+
+      if {[string match "W *" $msg] || [string match "W *" $msg]} {
+        if {$line_no in $err_lines} {
+          continue
+        }
+      }
+
       set _msg [split $msg \n]
       set msg {}
       foreach m $_msg { lappend msg [string trimright [string trimleft $m]] }
@@ -43,9 +74,8 @@ foreach ln $out {
 }
 end_tcl
         call setqflist(s:qflist)
-        exec 'cd ' . this_dir
     endfunction
-"endif
+endif
 
 if !exists("*s:TclCheckUpdate")
     function! s:TclCheckUpdate()
@@ -73,8 +103,32 @@ if !exists("*s:ClearTclCheck")
     function! s:ClearTclCheck()
         let s:qflist = []
         call clearmatches()
+        sign unplace *
     endfunction
 endif
+
+" Enable / Disable {{{
+
+function! s:Enable()
+    let s:enabled = 1
+    silent call s:RunTclCheck()
+endfunction
+
+function! s:Disable()
+    let s:enabled = 0
+    silent call s:ClearTclCheck()
+endfunction
+
+if !exists(":EnableTclCheck")
+    command EnableTclCheck :call s:Enable()
+endif
+
+if !exists(":DisableTclCheck")
+    command DisableTclCheck :call s:Disable()
+endif
+
+" }}}
+
 
 " Call this function in your .vimrc to update PyFlakes
 if !exists(":TclCheckUpdate")
