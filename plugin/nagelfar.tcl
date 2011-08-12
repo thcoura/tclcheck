@@ -101,9 +101,9 @@ proc errorMsg {severity msg i} {
         N { set color "#66BB00"; set severityMsg "NOTICE" }
     }
     if {$::Prefs(prefixFile)} {
-    # Use a shorter format when -H flag is used
-    # This format can be parsed be e.g. emacs compile
-    set pre "${pre}$line: $severity "
+        # Use a shorter format when -H flag is used
+        # This format can be parsed be e.g. emacs compile
+        set pre "${pre}$line: $severity "
     } else {
         set pre "${pre}Line [format %3d $line]: $severity "
     }
@@ -225,84 +225,6 @@ proc CopyCmdInDatabase {from to {map {}}} {
         }
     }
     lappend ::knownCommands $to
-}
-
-# This is called when a comment is encountered.
-# It allows syntax information to be stored in comments
-proc checkComment {str index knownVarsName} {
-    upvar $knownVarsName knownVars
-
-    if {[string match "##nagelfar *" $str]} {
-        set rest [string range $str 11 end]
-        if {[catch {llength $rest}]} {
-            errorMsg N "Bad list in ##nagelfar comment" $index
-            return
-        }
-        if {[llength $rest] == 0} return
-        set cmd [lindex $rest 0]
-        set first [lindex $rest 1]
-        set rest [lrange $rest 2 end]
-        switch -- $cmd {
-            syntax {
-            #                decho "Syntax for '$first' : '$rest'"
-                set ::syntax($first) $rest
-                lappend ::knownCommands $first
-            }
-            implicitvar {
-                set ::implicitVar($first) $rest
-            }
-            return {
-                set ::return($first) $rest
-            }
-            subcmd {
-                set ::subCmd($first) $rest
-            }
-            subcmd+ {
-                eval [list lappend ::subCmd($first)] $rest
-            }
-            option {
-                set ::option($first) $rest
-            }
-            variable {
-                set type [join $rest]
-                markVariable $first 1 "" 1 $index knownVars type
-            }
-            alias {
-                set ::knownAliases($first) $rest
-            }
-            copy {
-            #echo "Copy in $::Nagelfar(firstpass) $first [lindex $rest 0]"
-                CopyCmdInDatabase $first [lindex $rest 0] [lrange $rest 1 end]
-            }
-            nocover {
-                set ::instrumenting(no,$index) 1
-            }
-            cover {
-                if {$first ne "variable"} {
-
-                } else {
-                    set varname [lindex $rest 0]
-                    set ::instrumenting($index) [list var $varname]
-                }
-            }
-            ignore -
-            filter {
-            # FIXA, syntax for several lines
-                set line [calcLineNo $index]
-                incr line
-                switch -- $first {
-                    N { addFilter "*Line *$line: N *[join $rest]*" }
-                    W { addFilter "*Line *$line: \[NW\] *[join $rest]*" }
-                    E { addFilter "*Line *$line:*[join $rest]*" }
-                    default { addFilter "*Line *$line:*$first [join $rest]*" }
-                }
-            }
-            default {
-                errorMsg N "Bad type in ##nagelfar comment" $index
-                return
-            }
-        }
-    } 
 }
 
 # Handle a stack of current namespaces.
@@ -548,9 +470,9 @@ proc checkOptions {cmd argv wordstatus indices {startI 0} {max 0} {pair 0}} {
             if {($ws & 1) && $check} { # Constant
                 set ix [lsearch -exact $option($cmd) $arg]
                 if {$ix == -1} {
-                # Check ambiguity.
+                    # Check ambiguity.
                     if {![regexp {[][?*]} $arg]} {
-                    # Only try globbing if $arg is free from glob chars.
+                        # Only try globbing if $arg is free from glob chars.
                         set match [lsearch -all -inline -glob $option($cmd) $arg*]
                     } else {
                         set match {}
@@ -2084,7 +2006,6 @@ proc parseStatement {statement index knownVarsName} {
                         }
                         foreach $fVars $valList {
                             foreach fVar $varList {
-                            ##nagelfar variable apaV
                                 lappend ::foreachVar($fVar) $apaV($fVar)
                             }
                         }
@@ -2628,10 +2549,8 @@ proc splitScript {script index statementsName indicesName knownVarsName} {
                         incr index $i
                     }
                 }
-                if {[string equal [string index $tryline 0] "#"]} {
-                # Check and discard comments
-                    checkComment $tryline $index knownVars
-                } else {
+                # Discard comments
+                if {![string equal [string index $tryline 0] "#"]} {
                     if {$splitSemi} {
                     # Remove the semicolon from the statement
                         lappend statements [string range $tryline 0 end-1]
@@ -2724,8 +2643,6 @@ proc splitScript {script index statementsName indicesName knownVarsName} {
 # Returns the return type of the script
 proc parseBody {body index knownVarsName {warnCommandSubst 0}} {
     upvar $knownVarsName knownVars
-
-    #set ::instrumenting($index) 1
 
     # Cache the splitScript result to optimise 2-pass checking.
     if {[info exists ::Nagelfar(cacheBody)] && \
@@ -3197,7 +3114,7 @@ proc buildLineDb {str} {
 proc parseScript {script} {
     global knownGlobals unknownCommands knownCommands syntax
 
-    catch {unset unknownCommands}
+    unset -nocomplain unknownCommands
     set unknownCommands {}
     array set knownVars {}
     array set ::knownAliases {}
@@ -3329,12 +3246,12 @@ proc loadDatabases {} {
         }
     }
 
-    catch {unset ::syntax}
-    catch {unset ::implicitVar}
-    catch {unset ::return}
-    catch {unset ::subCmd}
-    catch {unset ::option}
-    catch {unset ::knownAliases}
+    unset -nocomplain ::syntax
+    unset -nocomplain ::implicitVar
+    unset -nocomplain ::return
+    unset -nocomplain ::subCmd
+    unset -nocomplain ::option
+    unset -nocomplain ::knownAliases
     if {[_iparray exists ::syntax]} {
         array set ::syntax [_iparray get ::syntax]
     }
@@ -3376,12 +3293,12 @@ proc doCheck {} {
 
     # In header generation, store info before reading
     if {$::Nagelfar(header) ne ""} {
-    set h_oldsyntax [array names ::syntax]
-    set h_oldsubCmd [array names ::subCmd]
-    set h_oldoption [array names ::option]
-    set h_oldreturn [array names ::return]
-    set h_oldimplicitvar [array names ::implicitVar]
-    set h_oldaliases [array names ::knownAliases]
+        set h_oldsyntax [array names ::syntax]
+        set h_oldsubCmd [array names ::subCmd]
+        set h_oldoption [array names ::option]
+        set h_oldreturn [array names ::return]
+        set h_oldimplicitvar [array names ::implicitVar]
+        set h_oldaliases [array names ::knownAliases]
     }
 
     # Initialise variables
