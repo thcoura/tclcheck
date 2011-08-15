@@ -1827,35 +1827,35 @@ proc parseStatement {statement index knownVarsName} {
             if {[string match "oo::class create*" $currNs]} {
             #echo "Var: in $currNs"
                 foreach var $argv ws $wordstatus {
-                lappend ::implicitVar($currNs) $var
+                    lappend ::implicitVar($currNs) $var
                 }
-                } else {
+            } else {
                 set i 0
                 foreach {var val} $argv {ws1 ws2} $wordstatus {
-                set ns [currentNamespace]
-                if {[regexp {^(.*)::([^:]+)$} $var -> root var]} {
-                set ns $root
-                if {[string match "::*" $ns]} {
-                set ns [string range $ns 2 end]
-                }
-                }
-                if {$ns ne "__unknown__"} {
-                if {$ws1 & 1} {
-                set knownVars(namespace,$var) $ns
-                }
-                if {($ws1 & 1) || [string is wordchar $var]} {
-                set knownVars(known,$var) 1
-                set knownVars(type,$var)  ""
-                if {$i < $argc - 1} {
-                    set knownVars(set,$var) 1
-                }
-            lappend constantsDontCheck $i
-        } else {
-            errorMsg N "Non constant argument to $cmd: $var" \
-                $index
-                }
-                }
-                incr i 2
+                    set ns [currentNamespace]
+                    if {[regexp {^(.*)::([^:]+)$} $var -> root var]} {
+                        set ns $root
+                        if {[string match "::*" $ns]} {
+                            set ns [string range $ns 2 end]
+                        }
+                    }
+                    if {$ns ne "__unknown__"} {
+                        if {$ws1 & 1} {
+                            set knownVars(namespace,$var) $ns
+                        }
+                        if {($ws1 & 1) || [string is wordchar $var]} {
+                            set knownVars(known,$var) 1
+                            set knownVars(type,$var)  ""
+                            if {$i < $argc - 1} {
+                                set knownVars(set,$var) 1
+                            }
+                            lappend constantsDontCheck $i
+                        } else {
+                            errorMsg N "Non constant argument to $cmd: $var" \
+                                $index
+                        }
+                    }
+                    incr i 2
                 }
             }
         }
@@ -2393,7 +2393,7 @@ proc parseStatement {statement index knownVarsName} {
     }
 
     if {$::Prefs(noVar)} {
-    return $type
+        return $type
     }
 
     if {!$noConstantCheck} {
@@ -3106,7 +3106,7 @@ proc parseScript {script} {
     array set knownVars {}
     array unset ::knownAliases
     array set ::knownAliases {}
-if {0} {
+if {1} {
     foreach g $knownGlobals {
         set knownVars(known,$g) 1
         set knownVars(set,$g)   1
@@ -3204,20 +3204,18 @@ proc loadDatabases {} {
         _ipsource $f
     }
 
-if {0} {
     if {[_ipexists ::knownGlobals]} {
         set ::knownGlobals [_ipset ::knownGlobals]
     } else {
         set ::knownGlobals {}
     }
-} else {
-    set ::knownGlobals {}
-}
+
     if {[_ipexists ::knownCommands]} {
         set ::knownCommands [_ipset ::knownCommands]
     } else {
         set ::knownCommands {}
     }
+
     if {[_ipexists ::dbInfo]} {
         set ::Nagelfar(dbInfo) [join [_ipset ::dbInfo] \n]
     } else {
