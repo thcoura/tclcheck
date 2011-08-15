@@ -62,11 +62,18 @@ foreach ln $out {
             set match_expr "\\%${line_no}l\\S.*$"
 
             if { [string match -nocase "E unknown variable \"*" $msg] \
-              || [string match -nocase "W found constant \"*" $msg]
+              || [string match -nocase "W found constant \"*" $msg] \
+              || [string match -nocase "N suspicious variable name \"*" $msg] \
+              || [string match -nocase "E unknown subcommand \"*" $msg] \
+              || [string match -nocase "W suspicious command \"*" $msg] \
+              || [string match -nocase "E strange command \"*" $msg] \
                } {
                 regexp {(?:.*?")(.*?)(")} $msg -> var
-                set match_expr "\\%${line_no}l\\<$var\\>"
-            }                    
+                set match_expr "\\%${line_no}l$var\\>"
+            } elseif {[string match -nocase "E bad option -*" $msg]} {
+                regexp {(?:.*?\s)(-.*?)(\s)} $msg -> opt
+                set match_expr "\\%${line_no}l$opt\\>"
+            }                   
 
             if {[string match "W *" $msg]} {
                 #::vim::command "sign place $sign_no line=$line_no name=TclCheckWarn buffer=$buf_no"
@@ -182,6 +189,7 @@ au BufEnter <buffer> TclCheckUpdate
 au InsertLeave <buffer> TclCheckUpdate
 au InsertEnter <buffer> TclCheckUpdate
 au BufWritePost <buffer> TclCheckUpdate
+au ColorScheme <buffer> TclCheckUpdate
 au BufLeave <buffer> ClearTclCheck
 
 " screen update not great when using signs, also TclCheckUpdate needs to be
