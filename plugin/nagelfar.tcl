@@ -1279,9 +1279,6 @@ proc checkCommand {cmd index argv wordstatus wordtype indices {firsti 0}} {
                         set body [string range $body 1 end]
                     }
                     # A virtual namespace should not be instrumented.
-                    if {$tok ne "cn"} {
-                        set ::instrumenting([lindex $indices $i]) 1
-                    }
                     if {$tok eq "cg"} {
                     # Check in global context
                         pushNamespace {}
@@ -1352,7 +1349,6 @@ proc checkCommand {cmd index argv wordstatus wordtype indices {firsti 0}} {
                     if {$tokCount ne ""} {
                         append body [string repeat " x" $tokCount]
                     }
-                    set ::instrumenting([lindex $indices $i]) 1
 
                     # Check in local context
                     #puts "Cmd '$cmd' NS '[currentNamespace]'"
@@ -2016,7 +2012,6 @@ proc parseStatement {statement index knownVarsName} {
                 errorMsg W "No braces around body in foreach\
                     statement." $index
             }
-            set ::instrumenting([lindex $indices end]) 1
             set type [parseBody [lindex $argv end] [lindex $indices end] \
                 knownVars]
                 # Clean up
@@ -2101,10 +2096,7 @@ proc parseStatement {statement index knownVarsName} {
                 errorMsg E "Badly formed if statement" $index
                 contMsg "Missing one body."
                 return
-            } elseif {$state eq "else"} {
-            # Mark the missing else for instrumenting
-                set ::instrumenting([expr {$index + [string length $arg]}]) 2
-            }
+            } 
             #            decho "if syntax \"$ifsyntax\""
             set ::syntax(if) $ifsyntax
             checkCommand $cmd $index $argv $wordstatus $wordtype $indices
@@ -2178,7 +2170,6 @@ proc parseStatement {statement index knownVarsName} {
                     errorMsg W "No braces around code in switch\
                         statement." $i2
                 }
-                set ::instrumenting($i2) 1
                 parseBody $body $i2 knownVars
             }
         }
@@ -2942,7 +2933,6 @@ proc parseProc {argv indices isProc isMethod definingCmd} {
             popNamespace
         }
     }
-    set ::instrumenting([lindex $indices 2]) 1
 
     #foreach item [array names knownVars upvar,*] {
     #    puts "upvar '$item' '$knownVars($item)'"
@@ -3056,8 +3046,6 @@ proc buildLineDb {str} {
     # and the index after the header is kept.  This is to preserve the header
     # in code coverage mode.
     # The first non-empty non-comment line ends the header.
-    set ::instrumenting(header) 0
-    set ::instrumenting(already) 0
     set headerLines 1
     set previousWasEscaped 0
 
@@ -3079,10 +3067,6 @@ proc buildLineDb {str} {
             checkPossibleComment $line $lineNo
         } elseif {$headerLines && $line ne "" && !$previousWasEscaped} {
             set headerLines 0
-            set ::instrumenting(header) [string length $result]
-            if {$line eq "namespace eval ::_instrument_ {}"} {
-                set ::instrumenting(already) 1
-            }
         }
 
         # Count backslashes to determine if it's escaped
@@ -3131,7 +3115,6 @@ if {0} {
     }
 }
     set script [buildLineDb $script]
-    set ::instrumenting(script) $script
 
     pushNamespace {}
     set ::Nagelfar(firstpass) 0
