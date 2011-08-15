@@ -2994,7 +2994,7 @@ proc calcLineNo {ix} {
         } elseif {$ni > $ix} {
             set last $n
         } else {
-        # Equality should have been caught in the lsearch above.
+            # Equality should have been caught in the lsearch above.
             decho "Internal error: Equal element slipped through in calcLineNo"
             return [expr {$n + 2}]
         }
@@ -3114,12 +3114,13 @@ if {1} {
         set knownVars(type,$g)      ""
     }
 }
+
     set script [buildLineDb $script]
 
     pushNamespace {}
     set ::Nagelfar(firstpass) 0
     if {$::Nagelfar(2pass)} {
-    # First do one round with proc checking
+        # First do one round with proc checking
         set ::Nagelfar(firstpass) 1
         parseBody $script 0 knownVars
         #echo "Second pass"
@@ -3130,28 +3131,30 @@ if {1} {
 
     # Check commands that where unknown when encountered
     # FIXA: aliases
+if {0} {
     foreach apa $unknownCommands {
-    foreach {cmd cmds index} $apa break
-    set found 0
-    foreach cmdCandidate $cmds {
-        if {[info exists syntax($cmdCandidate)] || \
-            [lsearch $knownCommands $cmdCandidate] >= 0} {
-            set found 1
-            break
+        lassign $apa cmd cmds index
+        set found 0
+        foreach cmdCandidate $cmds {
+            if {[info exists syntax($cmdCandidate)] || \
+                [lsearch $knownCommands $cmdCandidate] >= 0} {
+                set found 1
+                break
+            }
         }
-    }
-    if {!$found} {
-    # Close brace is reported elsewhere
-        if {$cmd ne "\}"} {
-        # Different messages depending on name
-            if {[regexp {^(?:(?:[\w',:.]+)|(?:%W))$} $cmd]} {
-                errorMsg W "Unknown command \"$cmd\"" $index
-            } else {
-                errorMsg E "Strange command \"$cmd\"" $index
+        if {!$found} {
+            # Close brace is reported elsewhere
+            if {$cmd ne "\}"} {
+                # Different messages depending on name
+                if {[regexp {^(?:(?:[\w',:.]+)|(?:%W))$} $cmd]} {
+                    errorMsg W "Unknown command \"$cmd\"" $index
+                } else {
+                    errorMsg E "Strange command \"$cmd\"" $index
+                }
             }
         }
     }
-    }
+}
 if {0} {
     # Update known globals.
     foreach item [array names knownVars namespace,*] {
@@ -3167,18 +3170,6 @@ if {0} {
 }
 }
 
-
-# Add a message filter
-proc addFilter {pat {reapply 0}} {
-    if {[lsearch -exact $::Nagelfar(filter) $pat] < 0} {
-        lappend ::Nagelfar(filter) $pat
-    }
-}
-
-# Clear out all filters
-proc resetFilters {} {
-    set ::Nagelfar(filter) {}
-}
 
 # FIXA: Move safe reading to package
 ##nagelfar syntax _ipsource x
@@ -3286,23 +3277,12 @@ proc doCheck {} {
 
     unset -nocomplain ::Nagelfar(cacheBody)
 
-    # In header generation, store info before reading
-    if {$::Nagelfar(header) ne ""} {
-        set h_oldsyntax [array names ::syntax]
-        set h_oldsubCmd [array names ::subCmd]
-        set h_oldoption [array names ::option]
-        set h_oldreturn [array names ::return]
-        set h_oldimplicitvar [array names ::implicitVar]
-        set h_oldaliases [array names ::knownAliases]
-    }
-
     # Initialise variables
     set ::Nagelfar(namespaces) {}
     set ::Nagelfar(procs) {}
     set ::Nagelfar(object) ""
 
     # Do the checking
-
     set ::currentFile ""
     set ::Nagelfar(exitstatus) 0
     if {$int} {
@@ -3310,42 +3290,6 @@ proc doCheck {} {
         parseScript $::Nagelfar(checkEdit)
         flushMsg
     } 
-
-    # Generate header
-    if {$::Nagelfar(header) ne ""} {
-        foreach item $h_oldsyntax { unset ::syntax($item) }
-        # FIXA: With subcmd+, maybe additions need to be detected?
-        foreach item $h_oldsubCmd { unset ::subCmd($item) }
-        foreach item $h_oldoption { unset ::option($item) }
-        foreach item $h_oldreturn { unset ::return($item) }
-        foreach item $h_oldimplicitvar { unset ::implicitVar($item) }
-        foreach item $h_oldaliases { unset ::knownAliases($item) }
-
-        if {[catch {set ch [open $::Nagelfar(header) w]}]} {
-            puts stderr "Could not create file \"$::Nagelfar(header)\""
-        } else {
-            echo "Writing \"$::Nagelfar(header)\"" 1
-            foreach item [lsort -dictionary [array names ::syntax]] {
-                puts $ch "\#\#nagelfar [list syntax $item] $::syntax($item)"
-            }
-            foreach item [lsort -dictionary [array names ::subCmd]] {
-                puts $ch "\#\#nagelfar [list subcmd $item] $::subCmd($item)"
-            }
-            foreach item [lsort -dictionary [array names ::option]] {
-                puts $ch "\#\#nagelfar [list option $item] $::option($item)"
-            }
-            foreach item [lsort -dictionary [array names ::return]] {
-                puts $ch "\#\#nagelfar [list return $item] $::return($item)"
-            }
-            foreach item [lsort -dictionary [array names ::implicitVar]] {
-                puts $ch "\#\#nagelfar [list implicitvar $item] $::implicitVar($item)"
-            }
-            foreach item [lsort -dictionary [array names ::knownAliases]] {
-                puts $ch "\#\#nagelfar [list alias $item] $::knownAliases($item)"
-            }
-            close $ch
-        }
-    }
 }
 
 # vim:tabstop=4:softtabstop=4:shiftwidth=4
