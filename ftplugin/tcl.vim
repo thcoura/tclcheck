@@ -42,15 +42,17 @@ if !exists("*s:RunTclCheck")
         "sign unplace *
         " Map options to tcl space
         exec 'tcl set showtime ' . g:tclcheck_showtime
-tcl << end_tcl
+
+        tcl << end_tcl
+
 if {$showtime} {
     set start [clock milliseconds]
 }
 set buf [::vim::buffer $buf_no]
 set messages {}
-# FIXME 
+
 set out [synCheck [join [$buf get 1 end] \n] "${this_path}\\syntaxdb.tcl"]
-#set sign_no 1
+
 set err_lines {}
 foreach ln $out {
     if {![string match "*Unknown command*" $ln]} {
@@ -61,13 +63,13 @@ foreach ln $out {
 
             set match_expr "\\%${line_no}l\\S.*$"
 
-            if { [string match -nocase "E unknown variable \"*" $msg] \
-              || [string match -nocase "W found constant \"*" $msg] \
-              || [string match -nocase "N suspicious variable name \"*" $msg] \
-              || [string match -nocase "E unknown subcommand \"*" $msg] \
-              || [string match -nocase "W suspicious command \"*" $msg] \
-              || [string match -nocase "E strange command \"*" $msg] \
-               } {
+            if { [string match -nocase {E unknown variable *} $msg] \
+              || [string match -nocase {W found constant *} $msg] \
+              || [string match -nocase {N suspicious variable name *} $msg] \
+              || [string match -nocase {E unknown subcommand *} $msg] \
+              || [string match -nocase {W suspicious command *} $msg] \
+              || [string match -nocase {E strange command *} $msg] \
+              } {
                 regexp {(?:.*?")(.*?)(")} $msg -> var
                 set match_expr "\\%${line_no}l$var\\>"
             } elseif {[string match -nocase "E bad option -*" $msg]} {
@@ -76,17 +78,13 @@ foreach ln $out {
             }                   
 
             if {[string match "W *" $msg]} {
-                #::vim::command "sign place $sign_no line=$line_no name=TclCheckWarn buffer=$buf_no"
                 ::vim::command "let s:mID = matchadd('TclCheckWarn', '${match_expr}')"
             } elseif {[string match "N *" $msg]} {
-                #::vim::command "sign place $sign_no line=$line_no name=TclCheckNote buffer=$buf_no"
                 ::vim::command "let s:mID = matchadd('TclCheckNote', '${match_expr}')"
             } elseif {[string match "E *" $msg]} {
-                #::vim::command "sign place $sign_no line=$line_no name=TclCheckErr buffer=$buf_no"
                 ::vim::command "let s:mID = matchadd('TclCheckErr', '${match_expr}')"
                 lappend err_lines $line_no
             }
-            #incr sign_no
 
             if {[string match "W *" $msg] || [string match "N *" $msg]} {
                 if {$line_no in $err_lines} {
