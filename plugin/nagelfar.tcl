@@ -634,7 +634,7 @@ proc parseVar {str len index iName knownVarsName} {
         incr si
         set ei [string first "\}" $str $si]
         if {$ei == -1} {
-        # This should not happen.
+            # This should not happen.
             errorMsg E "Could not find closing brace in variable reference." \
                 $index
         }
@@ -680,7 +680,7 @@ proc parseVar {str len index iName knownVarsName} {
                 incr ei
             }
             if {$ei == -1} {
-            # This should not happen.
+                # This should not happen.
                 errorMsg E "Could not find closing parenthesis in variable\
                     reference." $index
                 return
@@ -1943,8 +1943,8 @@ proc parseStatement {statement index knownVarsName} {
             if {$argc == 1} {
             # Check the variable
                 if {[string match ::* [lindex $argv 0]]} {
-                # Skip qualified names until we handle
-                # namespace better. FIXA
+                    # Skip qualified names until we handle
+                    # namespace better. FIXA
                 } elseif {[markVariable [lindex $argv 0] \
                               [lindex $wordstatus 0] [lindex $wordtype 0] \
                 2 [lindex $indices 0] knownVars wtype]} {
@@ -2406,8 +2406,8 @@ proc parseStatement {statement index knownVarsName} {
     }
 
     if {!$noConstantCheck} {
-    # Check unmarked constants against known variables to detect missing $.
-    # The constant is considered ok if within quotes.
+        # Check unmarked constants against known variables to detect missing $.
+        # The constant is considered ok if within quotes.
         set i 0
         foreach ws $wordstatus var $argv {
             if {[info exists knownVars(known,$var)]} {
@@ -2962,6 +2962,7 @@ proc parseProc {argv indices isProc isMethod definingCmd} {
         set syntax($nameMethod) $newSyn
     }
 
+if {0} {
     # Update known globals with those that were set in the proc.
     # I.e. anyone with set == 1 and namespace == "" should be
     # added to known globals.
@@ -2975,6 +2976,7 @@ proc parseProc {argv indices isProc isMethod definingCmd} {
             }
         }
     }
+}
     return $newSyn
 }
 
@@ -3116,14 +3118,18 @@ proc parseScript {script} {
 
     unset -nocomplain unknownCommands
     set unknownCommands {}
+    array unset knownVars
     array set knownVars {}
+    array unset ::knownAliases
     array set ::knownAliases {}
+if {0} {
     foreach g $knownGlobals {
         set knownVars(known,$g) 1
         set knownVars(set,$g)   1
         set knownVars(namespace,$g) ""
         set knownVars(type,$g)      ""
     }
+}
     set script [buildLineDb $script]
     set ::instrumenting(script) $script
 
@@ -3163,6 +3169,7 @@ proc parseScript {script} {
         }
     }
     }
+if {0} {
     # Update known globals.
     foreach item [array names knownVars namespace,*] {
         if {$knownVars($item) != ""} continue
@@ -3174,6 +3181,7 @@ proc parseScript {script} {
             }
         }
     }
+}
 }
 
 
@@ -3213,11 +3221,15 @@ proc loadDatabases {} {
         _ipsource $f
     }
 
+if {0} {
     if {[_ipexists ::knownGlobals]} {
         set ::knownGlobals [_ipset ::knownGlobals]
     } else {
         set ::knownGlobals {}
     }
+} else {
+    set ::knownGlobals {}
+}
     if {[_ipexists ::knownCommands]} {
         set ::knownCommands [_ipset ::knownCommands]
     } else {
@@ -3290,6 +3302,8 @@ proc doCheck {} {
 
     # Load syntax databases
     #loadDatabases
+
+    unset -nocomplain ::Nagelfar(cacheBody)
 
     # In header generation, store info before reading
     if {$::Nagelfar(header) ne ""} {
