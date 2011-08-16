@@ -932,6 +932,8 @@ set ::option(ttk::treeview) {-takefocus -columns -displaycolumns -show -selectmo
 set ::option(unload) {-- -keeplibrary -nocomplain}
 set ::option(unset) {-nocomplain --}
 
+# proprietary stuff:
+
 set ::syntax(test) {s x*}
 set {::syntax(test name)} 1
 set {::syntax(test heading)} 1
@@ -942,3 +944,8 @@ set {::syntax(test fail)} {x*}
 
 set ::syntax(dictx) {s x*}
 set {::syntax(dictx pop)} {n x x}
+
+set {::syntax(xml.append)} {n x*}
+set {::syntax(xml.inside)} {n x*}
+set {::syntax(xml.appendtext)} {n x*}
+
