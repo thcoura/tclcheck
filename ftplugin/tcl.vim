@@ -5,14 +5,13 @@ else
     let b:did_tclCheck_ftplugin = 1
 endif
 
+echo "tclcheck loaded"
+
 
 if !exists('s:enabled')
     let s:enabled = 1
 endif
 
-"sign define TclCheckWarn text=W
-"sign define TclCheckNote text=N
-"sign define TclCheckErr linehl=TclCheckErr
 
 if !exists("*s:RunTclCheck")
     function! s:RunTclCheck()
@@ -51,7 +50,7 @@ if {$showtime} {
 set buf [::vim::buffer $buf_no]
 set messages {}
 
-set out [synCheck [join [$buf get 1 end] \n] "${this_path}\\syntaxdb.tcl"]
+set out [::tclCheck::synCheck [join [$buf get 1 end] \n] "${this_path}\\syntaxdb.tcl"]
 
 set err_lines {}
 foreach ln $out {
@@ -103,7 +102,9 @@ foreach ln $out {
 if {$showtime} {
     puts [expr [clock milliseconds] - $start]
 }
+
 end_tcl
+
         call setqflist(s:qflist)
     endfunction
 endif
@@ -117,7 +118,8 @@ endif
 
 if !exists("*s:GetTclCheckMessages")
     function! s:GetTclCheckMessages()
-tcl << EOF
+        tcl << end_tcl
+
 if {[info exists messages]} {
     set line_no [::vim::expr "line('.')"]
     if {[dict exists $messages $line_no]} {
@@ -126,7 +128,9 @@ if {[info exists messages]} {
         puts {}
     }
 }
-EOF
+
+end_tcl
+
     endfunction
 endif
 
@@ -169,7 +173,6 @@ endif
 " }}}
 
 
-" Call this function in your .vimrc to update PyFlakes
 if !exists(":TclCheckUpdate")
   command TclCheckUpdate :call s:TclCheckUpdate()
 endif
@@ -183,6 +186,7 @@ noremap <buffer><silent> x x:TclCheckUpdate<CR>
 noremap <buffer><silent> u u:TclCheckUpdate<CR>
 noremap <buffer><silent> <C-R> <C-R>:TclCheckUpdate<CR>
 
+au! * <buffer>
 au BufEnter <buffer> TclCheckUpdate
 au InsertLeave <buffer> TclCheckUpdate
 au InsertEnter <buffer> TclCheckUpdate
