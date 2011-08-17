@@ -56,6 +56,7 @@ proc echo {str {tag {}}} {
     update
 }
 
+
 # Debug output
 proc decho {str} {
     puts stderr $str
@@ -931,6 +932,7 @@ proc checkForComment {word index} {
         incr si
     }
 }
+
 
 # List version of checkForComment
 proc checkForCommentL {words wordstatus indices} {

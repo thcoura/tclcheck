@@ -9,6 +9,10 @@ if !exists("g:tclcheck_showtime")
     let g:tclcheck_showtime = 1
 endif
 
+if !exists('g:tclcheck_only_current_proc')
+    let g:tclcheck_only_current_proc = 0
+endif
+
 let s:this_path = escape(expand('<sfile>:p:h'), '\ \')
 silent exec 'tcl set this_path ' . s:this_path 
 

@@ -13,8 +13,53 @@ if !exists('s:enabled')
 endif
 
 
+" FIXME can't this be done by naglefar, if it's given a line number?
+if !exists('*s:GetProc')
+    function! s:GetProc()
+        let old_m = @m
+        norm mm
+        let curr_line = line('.')
+        let proc_line = search('^\(\s\|\t\)*\(proc\|oo::def*\)', 'bcn')
+        if proc_line == 0
+            norm `m
+            let @m = old_m
+            return [-2, 0]
+        endif
+        let to_end = getline(proc_line, '$')
+        " FIXME Rewrite in tcl, otherwise vim with python is also required
+        python << end_py
+ret = list()
+to_end = vim.eval('to_end')
+ret.append(to_end[0])
+braces = 1
+for ln in to_end[1:]:
+    ret.append(ln)
+    braces += ln.count('{')
+    braces -= ln.count('}')
+    if braces <= 0:
+        break
+
+vim.command('let end_line = %d' % (int(vim.eval('proc_line')) + len(ret) - 1))
+ret_ = '\n'.join(ret)
+# FIXME
+if "'" in ret_:
+    #print 'Warning: unable to extract proc, "\'" found'
+    vim.command("let ret = -1") 
+else:
+    vim.command("let ret = '%s'" % ret_) 
+end_py
+        norm `m
+        let @m = old_m
+        if curr_line > end_line
+            return [-2, 0]
+        endif
+        return [ret, proc_line-1]
+    endfunction
+endif
+
+
 if !exists("*s:RunTclCheck")
-    function! s:RunTclCheck()
+    function! s:RunTclCheck(force_all)
         if &background == "dark"
             "hi TclCheckErr guibg=#660015
             hi TclCheckErr gui=undercurl guisp=#ff0000
@@ -38,26 +83,44 @@ if !exists("*s:RunTclCheck")
         call setqflist([])
         let buf_no = winbufnr('.')
         silent exec "tcl set buf_no " . buf_no
-        "sign unplace *
+
         " Map options to tcl space
         exec 'tcl set showtime ' . g:tclcheck_showtime
+
+        exec 'tcl set start_ln 0'
+        if g:tclcheck_only_current_proc == 1 && a:force_all == 0
+            let code_n = s:GetProc()
+            let code = code_n[0]
+            exec 'tcl set start_ln ' . code_n[1]
+            if code != -2 && code != -1
+                exec 'tcl set code {' . code . '}'
+            endif
+        endif
 
         tcl << end_tcl
 
 if {$showtime} {
     set start [clock milliseconds]
 }
-set buf [::vim::buffer $buf_no]
+
+if {![info exists code]} {
+    set code [join [[::vim::buffer $buf_no] get 1 end] \n]
+}
 set messages {}
 
-set out [::tclCheck::synCheck [join [$buf get 1 end] \n] "${this_path}\\syntaxdb.tcl"]
+set out [::tclCheck::synCheck $code "${this_path}\\syntaxdb.tcl"]
+unset -nocomplain code
 
 set err_lines {}
 foreach ln $out {
     if {![string match "*Unknown command*" $ln]} {
         if {[string match "*Line*" $ln]} {
+
             regexp {(?:Line\s+)(\d+)(?::)} $ln -> line_no
+            incr line_no $start_ln
+
             regexp {(?::\s)(.*$)} $ln -> msg
+
             ::vim::command -quiet "let s:qflist += \[{'bufnr': winbufnr('.'), 'lnum': $line_no, 'col': 1, 'text': '$msg'}\]" 
 
             set match_expr "\\%${line_no}l\\S.*$"
@@ -68,6 +131,7 @@ foreach ln $out {
               || [string match -nocase {E unknown subcommand *} $msg] \
               || [string match -nocase {W suspicious command *} $msg] \
               || [string match -nocase {E strange command *} $msg] \
+              || [string match -nocase {E bad expression: invalid bareword *} $msg] \
               } {
                 regexp {(?:.*?")(.*?)(")} $msg -> var
                 set match_expr "\\%${line_no}l$var\\>"
@@ -110,9 +174,8 @@ end_tcl
 endif
 
 if !exists("*s:TclCheckUpdate")
-    function! s:TclCheckUpdate()
-        call s:RunTclCheck()
-        "call s:GetTclCheckMessage()
+    function! s:TclCheckUpdate(force_all)
+        call s:RunTclCheck(a:force_all)
     endfunction
 endif
 
@@ -146,7 +209,7 @@ endif
 
 function! s:Enable()
     let s:enabled = 1
-    silent call s:RunTclCheck()
+    silent call s:RunTclCheck(1)
 endfunction
 
 function! s:Disable()
@@ -174,8 +237,13 @@ endif
 
 
 if !exists(":TclCheckUpdate")
-  command TclCheckUpdate :call s:TclCheckUpdate()
+  command TclCheckUpdate :call s:TclCheckUpdate(0)
 endif
+
+if !exists(":TclCheckUpdateForceAll")
+  command TclCheckUpdateForceAll :call s:TclCheckUpdate(1)
+endif
+
 
 " Hook common text manipulation commands
 "   TODO: is there a more general "text op" autocommand we could register
@@ -187,11 +255,11 @@ noremap <buffer><silent> u u:TclCheckUpdate<CR>
 noremap <buffer><silent> <C-R> <C-R>:TclCheckUpdate<CR>
 
 au! * <buffer>
-au BufEnter <buffer> TclCheckUpdate
+au BufEnter <buffer> TclCheckUpdateForceAll
 au InsertLeave <buffer> TclCheckUpdate
 au InsertEnter <buffer> TclCheckUpdate
-au BufWritePost <buffer> TclCheckUpdate
-au ColorScheme <buffer> TclCheckUpdate
+au BufWritePost <buffer> TclCheckUpdateForceAll
+au ColorScheme <buffer> TclCheckUpdateForceAll
 au BufLeave <buffer> ClearTclCheck
 
 " screen update not great when using signs, also TclCheckUpdate needs to be
