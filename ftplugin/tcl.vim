@@ -5,6 +5,12 @@ else
     let b:did_tclCheck_ftplugin = 1
 endif
 
+if !has('tcl')
+    " FIXME warning message?
+    echoe "Tclcheck requires Vim built with Tcl support"
+    finish
+endif
+
 echo "tclcheck loaded"
 
 
@@ -13,47 +19,48 @@ if !exists('s:enabled')
 endif
 
 
+" Taken from tlib
+if !exists('*s:stringCount')
+    function! s:CountHelper()
+        let s:_count += 1
+    endf
+    function! s:stringCount(string, rx)
+        let s:_count = 0
+        call substitute(a:string, a:rx, '\=s:CountHelper()', 'g')
+        return s:_count
+    endf
+endif
+
+
 " FIXME can't this be done by naglefar, if it's given a line number?
 if !exists('*s:GetProc')
     function! s:GetProc()
-        let old_m = @m
-        norm mm
         let curr_line = line('.')
         let proc_line = search('^\(\s\|\t\)*\(proc\|oo::def*\)', 'bcn')
         if proc_line == 0
-            norm `m
-            let @m = old_m
             return [-2, 0]
         endif
-        let to_end = getline(proc_line, '$')
-        " FIXME Rewrite in tcl, otherwise vim with python is also required
-        python << end_py
-ret = list()
-to_end = vim.eval('to_end')
-ret.append(to_end[0])
-braces = 1
-for ln in to_end[1:]:
-    ret.append(ln)
-    braces += ln.count('{')
-    braces -= ln.count('}')
-    if braces <= 0:
-        break
 
-vim.command('let end_line = %d' % (int(vim.eval('proc_line')) + len(ret) - 1))
-ret_ = '\n'.join(ret)
-# FIXME
-if "'" in ret_:
-    #print 'Warning: unable to extract proc, "\'" found'
-    vim.command("let ret = -1") 
-else:
-    vim.command("let ret = '%s'" % ret_) 
-end_py
-        norm `m
-        let @m = old_m
+        let to_end = getline(proc_line, '$')
+
+        let ret = [to_end[0]]
+        let brace = 1
+        for ln in to_end[1:]
+            let ret += [ln]
+            let brace += s:stringCount(ln, '{') 
+            let brace -= s:stringCount(ln, '}')
+            if brace <= 0
+                break
+            endif
+        endfor
+
+        let end_line = proc_line + len(ret) - 1
+        let ret_ = join(ret, "\n")
+
         if curr_line > end_line
             return [-2, 0]
         endif
-        return [ret, proc_line-1]
+        return [ret_, proc_line-1]
     endfunction
 endif
 

@@ -5,6 +5,11 @@ else
     let b:did_tclCheck_plugin = 1
 endif
 
+if !has('tcl')
+    echoe "Tclcheck requires Vim built with Tcl support"
+    finish
+endif
+
 if !exists("g:tclcheck_showtime")
     let g:tclcheck_showtime = 1
 endif
