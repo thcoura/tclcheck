@@ -296,17 +296,17 @@ proc scanWord {str len index i} {
         }
     }
 
-    if {[string equal $c "\{"]} {
+    if {$c eq "\{"} {
         set closeChar \}
         set charType brace
-    } elseif {[string equal $c "\""]} {
+    } elseif {$c eq "\""} {
         set closeChar \"
         set charType quote
     } else {
         set closeChar ""
     }
 
-    if {![string equal $closeChar ""]} {
+    if {$closeChar ne ""} {
         for {} {$i < $len} {incr i} {
         # Search for closeChar
             set i [string first $closeChar $str $i]
@@ -384,7 +384,7 @@ proc splitStatement {statement index indicesName} {
         decho " Whitespace in splitStatement. [calcLineNo $index]"
     }
     # Comments should be descarded earlier
-    if {[string equal [string index $statement $i] "#"]} {
+    if {[string index $statement $i] eq "#"} {
         decho "Internal error:"
         decho " A comment slipped through to splitStatement. [calcLineNo $index]"
         return {}
@@ -503,7 +503,7 @@ proc checkOptions {cmd argv wordstatus indices {startI 0} {max 0} {pair 0}} {
                     }
                 }
             }
-            if {[string equal $arg "--"]} {
+            if {$arg eq "--"} {
                 set skip 0
                 break
             }
@@ -543,15 +543,15 @@ proc splitList {str index iName} {
             whsp { # Whitespace
                 if {[string is space $c]} continue
                 # End of whitespace, i.e. a new element
-                if {[string equal $c "\{"]} {
+                if {$c eq "\{"} {
                     set level 1
                     set state brace
                     lappend indices [expr {$index + $i + 1}]
-                } elseif {[string equal $c "\""]} {
+                } elseif {$c eq "\""} {
                     set state quote
                     lappend indices [expr {$index + $i + 1}]
                 } else {
-                    if {[string equal $c "\\"]} {
+                    if {$c eq "\\"} {
                         set escape 1
                     }
                     set state word
@@ -559,7 +559,7 @@ proc splitList {str index iName} {
                 }
             }
             word {
-                if {[string equal $c "\\"]} {
+                if {$c eq "\\"} {
                     set escape [expr {!$escape}]
                 } else {
                     if {!$escape} {
@@ -573,11 +573,11 @@ proc splitList {str index iName} {
                 }
             }
             quote {
-                if {[string equal $c "\\"]} {
+                if {$c eq "\\"} {
                     set escape [expr {!$escape}]
                 } else {
                     if {!$escape} {
-                        if {[string equal $c "\""]} {
+                        if {$c eq "\""} {
                             set state whsp
                             continue
                         }
@@ -587,13 +587,13 @@ proc splitList {str index iName} {
                 }
             }
             brace {
-                if {[string equal $c "\\"]} {
+                if {$c eq "\\"} {
                     set escape [expr {!$escape}]
                 } else {
                     if {!$escape} {
-                        if {[string equal $c "\{"]} {
+                        if {$c eq "\{"} {
                             incr level
-                        } elseif {[string equal $c "\}"]} {
+                        } elseif {$c eq "\}"} {
                             incr level -1
                             if {$level <= 0} {
                                 set state whsp
@@ -629,7 +629,7 @@ proc parseVar {str len index iName knownVarsName} {
     set si $i
     set c [string index $str $si]
 
-    if {[string equal $c "\{"]} {
+    if {$c eq "\{"} {
         # A variable ref starting with a brace always ends with next brace,
         # no exceptions that I know of
         incr si
@@ -644,7 +644,7 @@ proc parseVar {str len index iName knownVarsName} {
         set var [string range $str $si $ei]
         set vararr 0
         # check for an array
-        if {[string equal [string index $str $ei] ")"]} {
+        if {[string index $str $ei] eq ")"} {
             set pi [string first "(" $str $si]
             if {$pi != -1 && $pi < $ei} {
                 incr pi -1
@@ -661,16 +661,16 @@ proc parseVar {str len index iName knownVarsName} {
             set c [string index $str $ei]
             if {[string is wordchar $c]} continue
             # :: is ok.
-            if {[string equal $c ":"]} {
+            if {$c eq ":"} {
                 set c [string index $str [expr {$ei + 1}]]
-                if {[string equal $c ":"]} {
+                if {$c eq ":"} {
                     incr ei
                     continue
                 }
             }
             break
         }
-        if {[string equal [string index $str $ei] "("]} {
+        if {[string index $str $ei] eq "("} {
         # Locate the end of the array index
             set pi $ei
             set apa [expr {$si - 1}]
@@ -788,15 +788,15 @@ proc parseSubst {str index typeName knownVarsName} {
     set types {}
     for {set i 0} {$i < $len} {incr i} {
         set c [string index $str $i]
-        if {[string equal $c "\\"]} {
+        if {$c eq "\\"} {
             set escape [expr {!$escape}]
             set notype 1
         } elseif {!$escape} {
-            if {[string equal $c "\$"]} {
+            if {$c eq "\$"} {
                 incr i
                 lappend types [parseVar $str $len $index i knownVars]
                 set result 0
-            } elseif {[string equal $c "\["]} {
+            } elseif {$c eq "\["} {
                 set si $i
                 for {} {$i < $len} {incr i} {
                 # FIXA: error => complete
@@ -816,14 +816,14 @@ proc parseSubst {str index typeName knownVarsName} {
                 set result 0
             } else {
                 set notype 1
-                if {[string equal $c "\]"] && $i == ($len - 1)} {
-                # Note unescaped bracket at end of word since it's
-                # likely to mean it should not be there.
-                errorMsg N "Unescaped end bracket" [expr {$index + $i}]
-                } elseif {[string equal $c "\""] && $i == ($len - 1)} {
-                # Note unescaped quote at end of word since it's
-                # likely to mean it should not be there.
-                errorMsg N "Unescaped quote" [expr {$index + $i}]
+                if {$c eq "\]" && $i == ($len - 1)} {
+                    # Note unescaped bracket at end of word since it's
+                    # likely to mean it should not be there.
+                    errorMsg N "Unescaped end bracket" [expr {$index + $i}]
+                } elseif {$c eq "\"" && $i == ($len - 1)} {
+                    # Note unescaped quote at end of word since it's
+                    # likely to mean it should not be there.
+                    errorMsg N "Unescaped quote" [expr {$index + $i}]
                 }
             }
         } else {
@@ -853,22 +853,22 @@ proc parseExpr {str index knownVarsName} {
         set brace 0
         for {set i 0} {$i < $len} {incr i} {
             set c [string index $str $i]
-            if {[string equal $c "\\"]} {
+            if {$c eq "\\"} {
                 set escape [expr {!$escape}]
             } elseif {!$escape} {
-                if {[string equal $c "\{"]} {
+                if {$c eq "\{"} {
                     incr brace
-                } elseif {[string equal $c "\}"]} {
+                } elseif {$c eq "\}"} {
                     if {$brace > 0} {
                         incr brace -1
                     }
                 } elseif {$brace == 0} {
-                    if {[string equal $c "\$"]} {
+                    if {$c eq "\$"} {
                         incr i
                         parseVar $str $len $index i knownVars
                         append exp {${dummy}}
                         continue
-                    } elseif {[string equal $c "\["]} {
+                    } elseif {$c eq "\["} {
                         set si $i
                         for {} {$i < $len} {incr i} {
                             if {[info complete [string range $str $si $i]]} {
@@ -1019,7 +1019,7 @@ proc checkCommand {cmd index argv wordstatus wordtype indices {firsti 0}} {
         }
         checkForCommentL $argv $wordstatus $indices
         return $type
-    } elseif {[string equal [lindex $syn 0] "r"]} {
+    } elseif {[lindex $syn 0] eq "r"} {
     # A range of number of arguments
         if {($argc - $firsti) < [lindex $syn 1]} {
             WA
@@ -1085,14 +1085,14 @@ proc checkCommand {cmd index argv wordstatus wordtype indices {firsti 0}} {
         switch -- $tok {
             x - xComm {
             # x* matches anything up to the end.
-                if {[string equal $mod "*"]} {
+                if {$mod eq "*"} {
                     checkForCommentL [lrange $argv $i end] \
                         [lrange $wordstatus $i end] \
                         [lrange $indices $i end]
                     set i $argc
                     break
                 }
-                if {![string equal $mod "?"] || $i < $argc} {
+                if {$mod ne "?" || $i < $argc} {
                 # Check braced for comments
                     if {([lindex $wordstatus $i] & 2) && $tok != "xComm"} {
                         checkForComment [lindex $argv $i] [lindex $indices $i]
@@ -1101,7 +1101,7 @@ proc checkCommand {cmd index argv wordstatus wordtype indices {firsti 0}} {
                 }
             }
             di { # Define inheritance
-                if {![string equal $mod ""]} {
+                if {$mod ne ""} {
                     echo "Modifier \"$mod\" is not supported for \"$tok\" in\
                         syntax for $cmd."
                 }
@@ -1173,7 +1173,7 @@ proc checkCommand {cmd index argv wordstatus wordtype indices {firsti 0}} {
             dp -
             dm -
             dmp { # Define proc and/or method
-                if {![string equal $mod ""]} {
+                if {$mod ne ""} {
                     echo "Modifier \"$mod\" is not supported for \"$tok\" in\
                         syntax for $cmd."
                 }
@@ -1223,7 +1223,7 @@ proc checkCommand {cmd index argv wordstatus wordtype indices {firsti 0}} {
             }
             E -
             e { # An expression
-                if {![string equal $mod ""]} {
+                if {$mod ne ""} {
                     echo "Modifier \"$mod\" is not supported for \"$tok\" in\
                         syntax for $cmd."
                 }
@@ -1248,12 +1248,12 @@ proc checkCommand {cmd index argv wordstatus wordtype indices {firsti 0}} {
                 incr i
             }
             c - cg - cl - cn { # A code block
-                if {[string equal $mod "?"]} {
+                if {$mod eq "?"} {
                     if {$i >= $argc} {
                         set i $argc
                         break
                     }
-                } elseif {![string equal $mod ""]} {
+                } elseif {$mod ne ""} {
                     echo "Modifier \"$mod\" is not supported for \"$tok\" in\
                         syntax for $cmd."
                 }
@@ -1311,12 +1311,12 @@ proc checkCommand {cmd index argv wordstatus wordtype indices {firsti 0}} {
                 incr i
             }
             cv { # A code block with a variable definition and local context
-                if {[string equal $mod "?"]} {
+                if {$mod eq "?"} {
                     if {$i >= $argc} {
                         set i $argc
                         break
                     }
-                } elseif {![string equal $mod ""]} {
+                } elseif {$mod ne ""} {
                     echo "Modifier \"$mod\" is not supported for \"$tok\" in\
                         syntax for $cmd."
                 }
@@ -1359,7 +1359,7 @@ proc checkCommand {cmd index argv wordstatus wordtype indices {firsti 0}} {
                 incr i
             }
             s { # A subcommand
-                if {![string equal $mod ""] && ![string equal $mod "."]} {
+                if {$mod ne "" && $mod ne "."} {
                     echo "Modifier \"$mod\" is not supported for \"s\" in\
                         syntax for $cmd."
                 }
@@ -1417,18 +1417,18 @@ proc checkCommand {cmd index argv wordstatus wordtype indices {firsti 0}} {
             l -
             v -
             n { # A call by name
-                if {[string equal $mod "?"]} {
+                if {$mod eq "?"} {
                     if {$i >= $argc} {
                         set i $argc
                         break
                     }
                 }
                 set ei [expr {$i + 1}]
-                if {[string equal $mod "*"]} {
+                if {$mod eq "*"} {
                     set ei $lastOptional
                 }
                 while {$i < $ei} {
-                    if {[string equal $tok "v"]} {
+                    if {$tok eq "v"} {
                     # Check the variable
                         if {[string match ::* [lindex $argv $i]]} {
                         # Skip qualified names until we handle
@@ -1442,7 +1442,7 @@ proc checkCommand {cmd index argv wordstatus wordtype indices {firsti 0}} {
                                     [lindex $indices $i]
                             }
                         }
-                    } elseif {[string equal $tok "n"]} {
+                    } elseif {$tok eq "n"} {
                         markVariable [lindex $argv $i] \
                             [lindex $wordstatus $i] [lindex $wordtype $i] 1 \
                             [lindex $indices $i] knownVars ""
@@ -1458,7 +1458,7 @@ proc checkCommand {cmd index argv wordstatus wordtype indices {firsti 0}} {
             }
             o {
                 set max [expr {$lastOptional - $i}]
-                if {![string equal $mod "*"]} {
+                if {$mod ne "*"} {
                     set max 1
                 }
                 set oSyn [checkOptions $cmd $argv $wordstatus $indices $i $max]
@@ -1478,7 +1478,7 @@ proc checkCommand {cmd index argv wordstatus wordtype indices {firsti 0}} {
             }
             p {
                 set max [expr {$lastOptional - $i}]
-                if {![string equal $mod "*"]} {
+                if {$mod ne "*"} {
                     set max 2
                 }
                 set oSyn [checkOptions $cmd $argv $wordstatus $indices $i \
@@ -1713,12 +1713,12 @@ proc parseStatement {statement index knownVarsName} {
             set word [string range $word 3 end]
         }
         set char [string index $word 0]
-        if {[string equal $char "\{"]} {
+        if {$char eq "\{"} {
             incr ws 3 ;# Braced & constant
             set word [string range $word 1 end-1]
             incr index
         } else {
-            if {[string equal $char "\""]} {
+            if {$char eq "\""} {
                 set word [string range $word 1 end-1]
                 incr index
                 incr ws 4
@@ -2034,26 +2034,26 @@ proc parseStatement {statement index knownVarsName} {
                     skip {
                     # This will behave bad with "if 0 then then"...
                         lappend ifsyntax xComm
-                        if {![string equal $arg then]} {
+                        if {$arg ne "then"} {
                             set state else
                         }
                         continue
                     }
                     then {
                         set state body
-                        if {[string equal $arg then]} {
+                        if {$arg eq "then"} {
                             lappend ifsyntax x
                             continue
                         }
                     }
                     else {
-                        if {[string equal $arg elseif]} {
+                        if {$arg eq "elseif"} {
                             set state expr
                             lappend ifsyntax x
                             continue
                         }
                         set state lastbody
-                        if {[string equal $arg else]} {
+                        if {$arg eq "else"} {
                             lappend ifsyntax x
                             continue
                         }
@@ -2161,11 +2161,11 @@ proc parseStatement {statement index knownVarsName} {
                 set swindices [lrange $indices $i end]
             }
             foreach {pat body} $swargv {ws1 ws2} $swwordst {i1 i2} $swindices {
-                if {[string equal [string index $pat 0] "#"]} {
+                if {[string index $pat 0] eq "#"} {
                     errorMsg W "Switch pattern starting with #.\
                         This could be a bad comment." $i1
                 }
-                if {[string equal $body -]} {
+                if {$body eq "-"} {
                     continue
                 }
                 if {($ws2 & 1) == 0} {
@@ -2195,7 +2195,7 @@ proc parseStatement {statement index knownVarsName} {
             }
             # Special handling of interp alias
             if {([lindex $wordstatus 0] & 1) && \
-                [string equal "alias" [lindex $argv 0]]} {
+                "alias" eq [lindex $argv 0]} {
                 if {$argc < 3} {
                     WA
                     return
@@ -2476,7 +2476,7 @@ proc splitScript {script index statementsName indicesName knownVarsName} {
         # Some extra checking on close braces to help finding
         # brace mismatches
             set closeBrace -1
-            if {[string equal "\}" [string trim $line]]} {
+            if {"\}" eq [string trim $line]} {
                 set closeBraceIx [expr {[string length $tryline] + $index}]
                 if {$newstatement} {
                     errorMsg E "Unbalanced close brace found" $closeBraceIx
@@ -2510,15 +2510,14 @@ proc splitScript {script index statementsName indicesName knownVarsName} {
             # If we split at a ; we must check that it really may be an end
             if {$splitSemi} {
             # Comment lines don't end with ;
-                if {[string equal [string index [string trimleft $tryline] 0]\
-                    "#"]} continue
+                if {[string index [string trimleft $tryline] 0] eq "#"} continue
 
                     # Look for \'s before the ;
                     # If there is an odd number of \, the ; is ignored
-                if {[string equal [string index $tryline end-1] "\\"]} {
+                if {[string index $tryline end-1] eq "\\"} {
                     set i [expr {[string length $tryline] - 2}]
                     set t $i
-                    while {[string equal [string index $tryline $t] "\\"]} {
+                    while {[string index $tryline $t] eq "\\"} {
                         incr t -1
                     }
                     if {($i - $t) % 2 == 1} {continue}
@@ -2543,7 +2542,7 @@ proc splitScript {script index statementsName indicesName knownVarsName} {
                     }
                 }
                 # Discard comments
-                if {![string equal [string index $tryline 0] "#"]} {
+                if {[string index $tryline 0] ne "#"} {
                     if {$splitSemi} {
                     # Remove the semicolon from the statement
                         lappend statements [string range $tryline 0 end-1]
@@ -2756,7 +2755,7 @@ proc parseArgsToSyn {name procArgs indexArgs syn knownVarsName} {
             }
             set upvar 1
         }
-        if {[string equal $var "args"]} {
+        if {$var eq "args"} {
             set unlim 1
             set type x*
         } elseif {[llength $a] == 2} {
@@ -3065,7 +3064,7 @@ proc buildLineDb {str} {
         set indent [countIndent $line]
         set line [string trimleft $line]
         # Check for comments.
-        if {[string equal [string index $line 0] "#"]} {
+        if {[string index $line 0] eq "#"} {
             checkPossibleComment $line $lineNo
         } elseif {$headerLines && $line ne "" && !$previousWasEscaped} {
             set headerLines 0
@@ -3073,10 +3072,10 @@ proc buildLineDb {str} {
 
         # Count backslashes to determine if it's escaped
         set previousWasEscaped 0
-        if {[string equal [string index $line end] "\\"]} {
+        if {[string index $line end] eq "\\"} {
             set len [string length $line]
             set si [expr {$len - 2}]
-            while {[string equal [string index $line $si] "\\"]} {incr si -1}
+            while {[string index $line $si] eq "\\"} {incr si -1}
             if {($len - $si) % 2 == 0} {
             # An escaped newline
                 set previousWasEscaped 1
