@@ -2426,21 +2426,22 @@ proc splitScript {script index statementsName indicesName knownVarsName} {
     set tryline ""
     set newstatement 1
     set firstline ""
+    set alignedBraceIx -1
     string length $tryline
 
     set bracelevel 0
 
     foreach line [split $script \n] {
-    # Here we must remember that "line" misses the \n that split ate.
-    # When line is used below we add \n.
-    # The extra \n generated on the last line does not matter.
+        # Here we must remember that "line" misses the \n that split ate.
+        # When line is used below we add \n.
+        # The extra \n generated on the last line does not matter.
 
         if {$bracelevel > 0} {
-        # Manual brace parsing is entered when we know we are in
-        # a braced block.  Return to ordinary parsing as soon
-        # as a balanced brace is found.
+            # Manual brace parsing is entered when we know we are in
+            # a braced block.  Return to ordinary parsing as soon
+            # as a balanced brace is found.
 
-        # Extract relevant characters
+            # Extract relevant characters
             foreach char [regexp -all -inline {\\.|{|}} $line] {
                 if {$char eq "\{"} {
                     incr bracelevel
@@ -2449,9 +2450,19 @@ proc splitScript {script index statementsName indicesName knownVarsName} {
                     if {$bracelevel <= 0} break
                 }
             }
+            # Remember a close brace that is aligned with start of line.
+            if {"\}" eq [string trim $line] && $alignedBraceIx == -1} {
+                set closeBraceIx [expr {[string length $tryline] + $index}]
+                set closeBraceIndent [wasIndented $closeBraceIx]
+                set startIndent [wasIndented $index]
+                if {$startIndent == $closeBraceIndent} {
+                    set alignedBraceIx $closeBraceIx
+                }
+            }
             if {$bracelevel > 0} {
-            # We are still in a braced block so go on to the next line
+                # We are still in a braced block so go on to the next line
                 append tryline $line\n
+                set newstatement 0
                 set line ""
                 continue
             }
@@ -2461,6 +2472,7 @@ proc splitScript {script index statementsName indicesName knownVarsName} {
         # any backslash-newline has been removed.
         if {[string is space $line]} {
             if {$tryline eq ""} {
+                # We have not started a statement yet, move index to next line.
                 incr index [string length $line]
                 incr index
             } else {
@@ -2473,16 +2485,21 @@ proc splitScript {script index statementsName indicesName knownVarsName} {
 
         while {$line ne ""} {
 
-        # Some extra checking on close braces to help finding
-        # brace mismatches
-            set closeBrace -1
+            # Some extra checking on close braces to help finding
+            # brace mismatches
+            set closeBraceIndent -1
             if {"\}" eq [string trim $line]} {
                 set closeBraceIx [expr {[string length $tryline] + $index}]
                 if {$newstatement} {
                     errorMsg E "Unbalanced close brace found" $closeBraceIx
                     reportCommentBrace 0 $closeBraceIx
                 }
-                set closeBrace [wasIndented $closeBraceIx]
+                set closeBraceIndent [wasIndented $closeBraceIx]
+                set startIndent [wasIndented $index]
+                if {$startIndent == $closeBraceIndent && \
+                        $alignedBraceIx == -1} {
+                    set alignedBraceIx $closeBraceIx
+                }
             }
 
             # Move everything up to the next semicolon, newline or eof
@@ -2534,6 +2551,7 @@ proc splitScript {script index statementsName indicesName knownVarsName} {
                     incr index [string length $tryline]
                     set tryline ""
                     set newstatement 1
+                    set alignedBraceIx -1
                     continue
                 } else {
                     if {$i != 0} {
@@ -2551,13 +2569,14 @@ proc splitScript {script index statementsName indicesName knownVarsName} {
                     }
                     lappend indices $index
                 }
-                if {$closeBrace != -1} {
+                if {$closeBraceIndent != -1} {
                     set tmp [wasIndented $index]
-                    if {$tmp != $closeBrace} {
+                    if {$tmp != $closeBraceIndent} {
                     # Only do this if there is a free open brace
                         if {[regexp "\{\n" $tryline]} {
                             errorMsg N "Close brace not aligned with line\
-                                [calcLineNo $index] ($tmp $closeBrace)" \
+                                [calcLineNo $index]\
+                                ($tmp $closeBraceIndent)" \
                                 $closeBraceIx
                         }
                     }
@@ -2565,7 +2584,8 @@ proc splitScript {script index statementsName indicesName knownVarsName} {
                 incr index [string length $tryline]
                 set tryline ""
                 set newstatement 1
-            } elseif {$closeBrace == 0 && \
+                set alignedBraceIx -1
+            } elseif {$closeBraceIndent == 0 && \
                           ![string match "namespace eval*" $tryline] && \
                           ![string match "if *" $tryline] && \
             ![string match "*tcl_platform*" $tryline]} {
@@ -2594,6 +2614,7 @@ proc splitScript {script index statementsName indicesName knownVarsName} {
         errorMsg E "Could not complete statement." $index
 
         # Experiment a little to give more info.
+        # First, at first line, to give a hint of the nature of what is missing.
         if {[info complete $firstline\}]} {
             contMsg "One close brace would complete the first line"
             reportCommentBrace $index $index
@@ -2608,6 +2629,21 @@ proc splitScript {script index statementsName indicesName knownVarsName} {
             contMsg "One close bracket would complete the first line"
         }
 
+        # Second, at an aligned close brace, which is a likely place.
+        if {$alignedBraceIx != -1} {
+            set cand [string range $tryline 0 [expr {$alignedBraceIx - $index}]]
+            set txt "at end of line [calcLineNo $alignedBraceIx]."
+            if {[info complete $cand\}]} {
+                contMsg "One close brace would complete $txt"
+            } elseif {[info complete $cand\}\}]} {
+                contMsg "Two close braces would complete $txt"
+            }
+            # TODO: Use this information to assume completeness earlier
+            # This would need to recurse back to this function after cutting of the
+            # remainder of tryline.
+        }
+
+        # Third, at end of script
         set endIx [expr {$index + [string length $tryline] - 1}]
         set txt "the script body at line [calcLineNo $endIx]."
         if {[info complete $tryline\}]} {
@@ -2961,7 +2997,7 @@ if {0} {
         if {$knownVars($item) != ""} continue
         set var [string range $item 10 end]
         if {[info exists knownVars(set,$var)]} {
-        #	    decho "Set global $var in proc $name."
+        #    decho "Set global $var in proc $name."
             if {[lsearch $knownGlobals $var] == -1} {
                 lappend knownGlobals $var
             }
