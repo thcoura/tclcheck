@@ -59,7 +59,7 @@ endif
 
 
 let s:this_path = escape(expand('<sfile>:p:h'), '\ \')
-silent exec 'tcl set this_path ' . s:this_path 
+silent exec 'tcl namespace eval ::tclCheck { set this_path ' . s:this_path  . ' }'
 
 
 if g:tclcheck_use_threading

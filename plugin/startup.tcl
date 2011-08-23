@@ -82,5 +82,3 @@ if {1} {
   loadDatabases
 }
 
-namespace export synCheck
-
