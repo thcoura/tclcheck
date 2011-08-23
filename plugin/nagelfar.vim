@@ -37,16 +37,24 @@ if !has('tcl')
     finish
 endif
 
+" Useful only for debugging while I work on this plugin.
 if !exists("g:tclcheck_showtime")
     let g:tclcheck_showtime = 0
 endif
 
+" In insert mode, only send the current proc to to Nagelfar for linting. This
+" means error highlighting outside the current proc will disappear. Robustness
+" for proc extraction may not be so good. Currently uses a regex to find the
+" start of the proc and then matches a closing brace, so if braces don't match
+" etc. this may not work. Supports oo methods as well.
 if !exists('g:tclcheck_only_current_proc')
     let g:tclcheck_only_current_proc = 0
 endif
 
+" Process file in a background thread (error highlighting may not be immediate).
+" This is currently not finished/working, so I recommend not using it for now.
 if !exists('g:tclcheck_use_threading')
-    let g:tclcheck_use_threading = 1
+    let g:tclcheck_use_threading = 0
 endif
 
 
