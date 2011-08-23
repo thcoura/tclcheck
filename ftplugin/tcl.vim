@@ -115,7 +115,17 @@ if {![info exists code]} {
 }
 set messages {}
 
-set out [::tclCheck::synCheck $code "${this_path}\\syntaxdb.tcl"]
+if {$::tclCheck::use_threading} {
+    if {![info exists out_]} {
+        ::thread::send $::tclCheck::thread_id [ list synCheck $code "${this_path}\\syntaxdb.tcl" ] out_
+        set out {} ; # HACK
+    } else {
+        set out $out_
+        unset out_
+    }
+} else {
+    set out [::tclCheck::synCheck $code "${this_path}\\syntaxdb.tcl"]
+}
 unset -nocomplain code
 
 set err_lines {}
@@ -173,6 +183,8 @@ foreach ln $out {
 if {$showtime} {
     puts [expr [clock milliseconds] - $start]
 }
+
+unset out
 
 end_tcl
 
