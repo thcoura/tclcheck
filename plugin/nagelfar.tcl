@@ -2040,6 +2040,7 @@ proc parseStatement {statement index knownVarsName} {
                     markVariable $var 1 "" 1 $index known knownVars ""
                 }
             }
+if {0} {
             # FIXA: Experimental foreach check...
             # A special case for looping over constant lists
             set varsAdded {}
@@ -2059,6 +2060,7 @@ proc parseStatement {statement index knownVarsName} {
                         }
                     }
             }
+}
 
             if {([lindex $wordstatus end] & 1) == 0} {
                 errorMsg W "No braces around body in foreach\
@@ -2066,10 +2068,12 @@ proc parseStatement {statement index knownVarsName} {
             }
             set type [parseBody [lindex $argv end] [lindex $indices end] \
                 knownVars]
+if {0} {
                 # Clean up
             foreach fVar $varsAdded {
-                catch {unset ::foreachVar($fVar)}
+                unset -nocomplain ::foreachVar($fVar)
             }
+}
         }
         if {
             if {$argc < 2} {
