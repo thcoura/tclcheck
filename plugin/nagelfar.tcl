@@ -319,8 +319,8 @@ proc scanWord {str len index i} {
             }
             set word [string range $str $si2 $i]
             if {[info complete $word]} {
-            # Check for following whitespace
-            set j [expr {$i + 1}]
+                # Check for following whitespace
+                set j [expr {$i + 1}]
                 set nextchar [string index $str $j]
                 if {$j == $len || [string is space $nextchar]} {
                     return $i
@@ -729,6 +729,15 @@ proc parseVar {str len index iName knownVarsName} {
         return ""
     }
     # FIXA: Use markVariable
+    if {[info exists knownVars(array,$var)]} {
+        if {$vararr != $knownVars(array,$var)} {
+            if {$vararr} {
+                errorMsg E "Is array, was scalar" $index
+            } else {
+                errorMsg E "Is scalar, was array" $index
+            }
+        }
+    }
     if {![info exists knownVars(known,$var)] && !$::Prefs(noVar)} {
         if {[string match "*::*" $var]} {
             set tail [namespace tail $var]
@@ -1417,15 +1426,27 @@ proc checkCommand {cmd index argv wordstatus wordtype indices {firsti 0}} {
             l -
             v -
             n { # A call by name
-                if {$mod eq "?"} {
+                if {[string index $mod end] eq "?"} {
                     if {$i >= $argc} {
                         set i $argc
                         break
                     }
+                    set mod [string range $mod 0 end-1]
                 }
                 set ei [expr {$i + 1}]
-                if {$mod eq "*"} {
+                if {[string index $mod end] eq "*"} {
                     set ei $lastOptional
+                    set mod [string range $mod 0 end-1]
+                }
+                set typeFromToken ""
+                set isArray unknown
+                if {[string index $mod 0] eq "="} {
+                    set typeFromToken [string range $mod 1 end]
+                    if {$typeFromToken eq "array"} {
+                        set isArray yes
+                    } elseif {$typeFromToken eq "scalar"} {
+                        set isArray known
+                    }
                 }
                 while {$i < $ei} {
                     if {$tok eq "v"} {
@@ -1435,7 +1456,7 @@ proc checkCommand {cmd index argv wordstatus wordtype indices {firsti 0}} {
                         # namespace better. FIXA
                         } elseif {[markVariable [lindex $argv $i] \
                                       [lindex $wordstatus $i] [lindex $wordtype $i] \
-                                      2 [lindex $indices $i]\
+                                      2 [lindex $indices $i] $isArray \
                         knownVars vtype]} {
                             if {!$::Prefs(noVar)} {
                                 errorMsg E "Unknown variable \"[lindex $argv $i]\""\
@@ -1445,11 +1466,11 @@ proc checkCommand {cmd index argv wordstatus wordtype indices {firsti 0}} {
                     } elseif {$tok eq "n"} {
                         markVariable [lindex $argv $i] \
                             [lindex $wordstatus $i] [lindex $wordtype $i] 1 \
-                            [lindex $indices $i] knownVars ""
+                            [lindex $indices $i] $isArray knownVars ""
                     } else {
                         markVariable [lindex $argv $i] \
                             [lindex $wordstatus $i] [lindex $wordtype $i] 0 \
-                            [lindex $indices $i] knownVars ""
+                            [lindex $indices $i] $isArray knownVars ""
                     }
 
                     lappend constantsDontCheck $i
@@ -1512,7 +1533,7 @@ proc checkCommand {cmd index argv wordstatus wordtype indices {firsti 0}} {
 # If check is 2, check if it is known, return 1 if unknown
 # If check is 1, mark the variable as known and set
 # If check is 0, mark the variable as known
-proc markVariable {var ws wordtype check index knownVarsName typeName} {
+proc markVariable {var ws wordtype check index isArray knownVarsName typeName} {
     upvar $knownVarsName knownVars
     if {$typeName ne ""} {
         upvar $typeName type
@@ -1548,7 +1569,7 @@ proc markVariable {var ws wordtype check index knownVarsName typeName} {
             if {[info exists ::foreachVar($name)]} {
             # Mark them as known instead
                 foreach name $::foreachVar($name) {
-                    markVariable $name 1 "" $check $index knownVars ""
+                    markVariable $name 1 "" $check $index known knownVars ""
                 }
                 #return 1
             }
@@ -1557,6 +1578,20 @@ proc markVariable {var ws wordtype check index knownVarsName typeName} {
             errorMsg N "Suspicious variable name \"$var\"" $index
         }
         return 0
+    }
+
+    # Check for scalar/array mismatch
+    if {[info exists knownVars(array,$varBase)]} {
+        set varReallyArray [expr {$varArray || $isArray eq "yes"}]
+        if {$varReallyArray != $knownVars(array,$varBase)} {
+            if {$varReallyArray} {
+                errorMsg E "Is array, was scalar" $index
+            } else {
+                if {$isArray ne "unknown"} {
+                    errorMsg E "Is scalar, was array" $index
+                }
+            }
+        }
     }
 
     if {$check == 2} {
@@ -1578,14 +1613,25 @@ proc markVariable {var ws wordtype check index knownVarsName typeName} {
         return 0
     } else {
         if {![info exists knownVars(known,$varBase)]} {
+            set knownVars(known,$varBase) 1
             if {[currentProc] ne ""} {
-                set knownVars(known,$varBase) 1
                 set knownVars(local,$varBase) 1
                 set knownVars(type,$varBase)  $type
             } else {
                 set knownVars(known,$varBase) 1
                 set knownVars(namespace,$varBase) [currentNamespace]
                 set knownVars(type,$varBase)  $type
+            }
+            set knownVars(type,$varBase)  $type
+            if {$check == 1} {
+                if {$isArray eq "known"} {
+                    set knownVars(array,$varBase) $varArray
+                } elseif {$isArray eq "yes"} {
+                    set knownVars(array,$varBase) 1
+                }
+            }
+            if {$varArray || $isArray eq "yes"} {
+                set knownVars(array,$varBase) 1
             }
         }
         if {1 || $type ne ""} {
@@ -1603,6 +1649,7 @@ proc markVariable {var ws wordtype check index knownVarsName typeName} {
                 if {[info exists knownVars(local,$varBase)]} {
                     set knownVars(local,$var) 1
                 }
+                set knownVars(array,$var) 0
             }
             if {$check == 1} {
                 set knownVars(set,$var) 1
@@ -1850,6 +1897,9 @@ proc parseStatement {statement index knownVarsName} {
                             set knownVars(type,$var)  ""
                             if {$i < $argc - 1} {
                                 set knownVars(set,$var) 1
+                                set knownVars(array,$var) 0
+                                # FIXA: What if it is an array element?
+                                # Should the array be marked?
                             }
                             lappend constantsDontCheck $i
                         } else {
@@ -1945,7 +1995,7 @@ proc parseStatement {statement index knownVarsName} {
                     # namespace better. FIXA
                 } elseif {[markVariable [lindex $argv 0] \
                               [lindex $wordstatus 0] [lindex $wordtype 0] \
-                2 [lindex $indices 0] knownVars wtype]} {
+                              2 [lindex $indices 0] known knownVars wtype]} {
                     if {!$::Prefs(noVar)} {
                         errorMsg E "Unknown variable \"[lindex $argv 0]\""\
                             [lindex $indices 0]
@@ -1955,7 +2005,7 @@ proc parseStatement {statement index knownVarsName} {
                 set wtype [lindex $wordtype 1]
                 markVariable [lindex $argv 0] \
                     [lindex $wordstatus 0] [lindex $wordtype 0] \
-                    1 [lindex $indices 0] \
+                    1 [lindex $indices 0] known \
                     knownVars wtype
             } else {
                 WA
@@ -1968,7 +2018,7 @@ proc parseStatement {statement index knownVarsName} {
             if {0} {
                 if {$argc > 0 && [lindex $argv 0] eq "for"} {
                     foreach var [lindex $argv 1] {
-                        markVariable $var 1 "" 1 $index knownVars ""
+                        markVariable $var 1 "" 1 $index known knownVars ""
                     }
                 }
             }
@@ -1987,7 +2037,7 @@ proc parseStatement {statement index knownVarsName} {
                 }
                 lappend constantsDontCheck $i
                 foreach var [lindex $argv $i] {
-                    markVariable $var 1 "" 1 $index knownVars ""
+                    markVariable $var 1 "" 1 $index known knownVars ""
                 }
             }
             # FIXA: Experimental foreach check...
@@ -2890,7 +2940,7 @@ proc addImplicitVariables {cmd index knownVarsName} {
         set varName [lindex $var 0]
         set type    [lindex $var 1]
         markVariable $varName 1 "" 1 \
-            $index knownVars type
+            $index unknown knownVars type
     }
 }
 

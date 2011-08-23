@@ -168,11 +168,11 @@ set ::syntax(after) {r 1}
 set ::syntax(append) {n x*}
 set ::syntax(apply) {x x*}
 set ::syntax(array) {s v x?}
-set {::syntax(array exists)} l
-set {::syntax(array names)} {v x? x?}
-set {::syntax(array set)} {n x}
-set {::syntax(array size)} v
-set {::syntax(array statistics)} v
+set {::syntax(array exists)} l=array
+set {::syntax(array names)} {v=array x? x?}
+set {::syntax(array set)} {n=array x}
+set {::syntax(array size)} v=array
+set {::syntax(array statistics)} v=array
 set {::syntax(array unset)} {l x?}
 set ::syntax(auto_execok) 1
 set ::syntax(auto_import) 1
@@ -361,7 +361,7 @@ set ::syntax(scrollbar) {x p*}
 set ::syntax(seek) {r 2 3}
 set ::syntax(selection) {s x*}
 set ::syntax(send) {o* x x x*}
-set ::syntax(set) {1: v : n x}
+set ::syntax(set) {1: v=scalar : n=scalar x}
 set ::syntax(socket) {r 2}
 set ::syntax(source) {p* x}
 set ::syntax(spinbox) {x p*}
@@ -629,11 +629,14 @@ set ::subCmd(font) {actual configure create delete families measure metrics name
 set ::subCmd(history) {add change clear event info keep nextid redo}
 set ::subCmd(image) {create delete height inuse names type types width}
 set ::subCmd(info) {args body cmdcount commands complete default exists frame functions globals hostname level library loaded locals nameofexecutable patchlevel procs script sharedlibextension tclversion vars}
+set {::subCmd(info class)} {call constructor definition destructor filters forward instances methods methodtype mixins subclasses superclasses variables}
+set {::subCmd(info object)} {call class definition filters forward isa methods methodtype mixins namespace variables vars}
 set ::subCmd(interp) {alias aliases bgerror create debug delete eval exists expose hidden hide invokehidden issafe limit marktrusted recursionlimit share slaves target transfer}
 set ::subCmd(namespace) {children code current delete ensemble eval exists export forget import inscope origin parent path qualifiers tail unknown upvar which}
 set ::subCmd(option) {add clear get readfile}
 set ::subCmd(package) {forget ifneeded names prefer present provide require unknown vcompare versions vsatisfies}
 set ::subCmd(selection) {clear get handle own}
+set ::subCmd(self) {call caller class filter method namespace next object target}
 set ::subCmd(string) {bytelength compare equal first index is last length map match range repeat replace reverse tolower totitle toupper trim trimleft trimright wordend wordstart}
 set {::subCmd(string is)} {alnum alpha ascii boolean control digit double false graph integer list lower print punct space true upper wideinteger wordchar xdigit}
 set ::subCmd(tk) {appname caret inactive scaling useinputmethods windowingsystem}
