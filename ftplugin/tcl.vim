@@ -146,12 +146,11 @@ namespace eval ::tclCheck {
     set messages {}
 
     if {$use_threading} {
+        ::thread::send $thread_id [ list synCheck $code "${this_path}\\syntaxdb.tcl" ] out_
         if {![info exists out_]} {
-            ::thread::send $thread_id [ list synCheck $code "${this_path}\\syntaxdb.tcl" ] out_
-            set out {} ; # HACK
+            set out {}
         } else {
             set out $out_
-            unset out_
         }
     } else {
         set out [synCheck $code "${this_path}\\syntaxdb.tcl"]
@@ -213,8 +212,6 @@ namespace eval ::tclCheck {
     if {$showtime} {
         puts [expr [clock milliseconds] - $start]
     }
-
-unset out
 
 }
 

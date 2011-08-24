@@ -60,6 +60,8 @@ endif
 
 let s:this_path = escape(expand('<sfile>:p:h'), '\ \')
 silent exec 'tcl namespace eval ::tclCheck { set this_path ' . s:this_path  . ' }'
+" FIXME
+silent exec 'tcl set this_path ' . s:this_path
 
 
 if g:tclcheck_use_threading
@@ -86,18 +88,20 @@ namespace eval ::tclCheck {
             ::thread::send $thread_id [ list set ::this_path $this_path ]
         }
     }
+}
 
-    if {$use_threading} {
-        ::thread::send $thread_id {
-            source $this_path/nagelfar.tcl
-            source $this_path/preferences.tcl
-            source $this_path/startup.tcl
-        } r
-    } else {
+# FIXME wrap in namespace -- requires changes to Nagelfar though
+if {$::tclCheck::use_threading} {
+    ::thread::send $thread_id {
         source $this_path/nagelfar.tcl
         source $this_path/preferences.tcl
         source $this_path/startup.tcl
-    }
-
+    } r
+} else {
+    source $this_path/nagelfar.tcl
+    source $this_path/preferences.tcl
+    source $this_path/startup.tcl
 }
+
+set ttime 0
 
