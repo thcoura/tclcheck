@@ -136,88 +136,100 @@ if !exists("*s:RunTclCheck")
 
 namespace eval ::tclCheck {
 
-    if {$showtime} {
-        set start [clock milliseconds]
-    }
+    proc run {} {
+        variable showtime
+        variable buf_no
+        variable start_ln
+        variable use_threading
+        variable this_path
+        variable messages
 
-    if {![info exists code]} {
-        set code [join [[::vim::buffer $buf_no] get 1 end] \n]
-    }
-    set messages {}
-
-    if {$use_threading} {
-        ::thread::send $thread_id [ list synCheck $code "${this_path}\\syntaxdb.tcl" ] out_
-        if {![info exists out_]} {
-            set out {}
-        } else {
-            set out $out_
+        if {$showtime} {
+            set start [clock milliseconds]
         }
-    } else {
-        set out [synCheck $code "${this_path}\\syntaxdb.tcl"]
-    }
-    unset -nocomplain code
 
-    set err_lines {}
-    foreach ln $out {
-        if {![string match "*Unknown command*" $ln]} {
-            if {[string match "*Line*" $ln]} {
+        if {![info exists code]} {
+            set code [join [[::vim::buffer $buf_no] get 1 end] \n]
+        }
+        set messages {}
 
-                regexp {(?:Line\s+)(\d+)(?::)} $ln -> line_no
-                incr line_no $start_ln
+        if {$use_threading} {
+            ::thread::send $thread_id [ list synCheck $code "${this_path}\\syntaxdb.tcl" ] out_
+            if {![info exists out_]} {
+                set out {}
+            } else {
+                set out $out_
+            }
+        } else {
+            set out [synCheck $code "${this_path}\\syntaxdb.tcl"]
+        }
+        unset -nocomplain code
 
-                regexp {(?::\s)(.*$)} $ln -> msg
+        set err_lines {}
+        foreach ln $out {
+            if {![string match "*Unknown command*" $ln]} {
+                if {[string match "*Line*" $ln]} {
 
-                ::vim::command -quiet "let s:qflist += \[{'bufnr': winbufnr('.'), 'lnum': $line_no, 'col': 1, 'text': '$msg'}\]" 
+                    regexp {(?:Line\s+)(\d+)(?::)} $ln -> line_no
+                    incr line_no $start_ln
 
-                set match_expr "\\%${line_no}l\\S.*$"
+                    regexp {(?::\s)(.*$)} $ln -> msg
 
-                if { [string match -nocase {E unknown variable *} $msg] \
-                  || [string match -nocase {W found constant *} $msg] \
-                  || [string match -nocase {N suspicious variable name *} $msg] \
-                  || [string match -nocase {E unknown subcommand *} $msg] \
-                  || [string match -nocase {W suspicious command *} $msg] \
-                  || [string match -nocase {E strange command *} $msg] \
-                  || [string match -nocase {E bad expression: invalid bareword *} $msg] \
-                  } {
-                    regexp {(?:.*?")(.*?)(")} $msg -> var
-                    set match_expr "\\%${line_no}l$var\\>"
-                } elseif {[string match -nocase "E bad option -*" $msg]} {
-                    regexp {(?:.*?\s)(-.*?)(\s)} $msg -> opt
-                    set match_expr "\\%${line_no}l$opt\\>"
-                }                   
+                    ::vim::command -quiet "let s:qflist += \[{'bufnr': winbufnr('.'), 'lnum': $line_no, 'col': 1, 'text': '$msg'}\]" 
 
-                if {[string match "W *" $msg]} {
-                    ::vim::command "let s:mID = matchadd('TclCheckWarn', '${match_expr}')"
-                } elseif {[string match "N *" $msg]} {
-                    ::vim::command "let s:mID = matchadd('TclCheckNote', '${match_expr}')"
-                } elseif {[string match "E *" $msg]} {
-                    ::vim::command "let s:mID = matchadd('TclCheckErr', '${match_expr}')"
-                    lappend err_lines $line_no
-                }
+                    set match_expr "\\%${line_no}l\\S.*$"
 
-                if {[string match "W *" $msg] || [string match "N *" $msg]} {
-                    if {$line_no in $err_lines} {
-                        continue
+                    if { [string match -nocase {E unknown variable *} $msg] \
+                      || [string match -nocase {W found constant *} $msg] \
+                      || [string match -nocase {N suspicious variable name *} $msg] \
+                      || [string match -nocase {E unknown subcommand *} $msg] \
+                      || [string match -nocase {W suspicious command *} $msg] \
+                      || [string match -nocase {E strange command *} $msg] \
+                      || [string match -nocase {E bad expression: invalid bareword *} $msg] \
+                      } {
+                        regexp {(?:.*?")(.*?)(")} $msg -> var
+                        set match_expr "\\%${line_no}l$var\\>"
+                    } elseif {[string match -nocase "E bad option -*" $msg]} {
+                        regexp {(?:.*?\s)(-.*?)(\s)} $msg -> opt
+                        set match_expr "\\%${line_no}l$opt\\>"
+                    }                   
+
+                    if {[string match "W *" $msg]} {
+                        ::vim::command "let s:mID = matchadd('TclCheckWarn', '${match_expr}')"
+                    } elseif {[string match "N *" $msg]} {
+                        ::vim::command "let s:mID = matchadd('TclCheckNote', '${match_expr}')"
+                    } elseif {[string match "E *" $msg]} {
+                        ::vim::command "let s:mID = matchadd('TclCheckErr', '${match_expr}')"
+                        lappend err_lines $line_no
                     }
-                }
 
-                set _msg [split $msg \n]
-                set msg {}
-                foreach m $_msg { lappend msg [string trimright [string trimleft $m]] }
-                set msg [join $msg " | "]
-                dict set messages $line_no $msg
+                    if {[string match "W *" $msg] || [string match "N *" $msg]} {
+                        if {$line_no in $err_lines} {
+                            continue
+                        }
+                    }
+
+                    set _msg [split $msg \n]
+                    set msg {}
+                    foreach m $_msg { lappend msg [string trimright [string trimleft $m]] }
+                    set msg [join $msg " | "]
+                    dict set messages $line_no $msg
+                }
             }
         }
-    }
-    if {$showtime} {
-        puts [expr [clock milliseconds] - $start]
-    }
+        if {$showtime} {
+            puts [expr [clock milliseconds] - $start]
+        }
 
+    }
+        
+    run
 }
 
 end_tcl
 
         call setqflist(s:qflist)
+        call s:GetTclCheckMessages()
     endfunction
 endif
 
@@ -233,14 +245,19 @@ if !exists("*s:GetTclCheckMessages")
 
 namespace eval ::tclCheck {
 
-    if {[info exists messages]} {
-        set line_no [::vim::expr "line('.')"]
-        if {[dict exists $messages $line_no]} {
-            puts [dict get $messages $line_no]
-        } else {
-            puts {}
+    proc checkMessages {} {
+        variable messages
+
+        if {[info exists messages]} {
+            set line_no [::vim::expr "line('.')"]
+            if {[dict exists $messages $line_no]} {
+                puts [dict get $messages $line_no]
+            } else {
+                puts {}
+            }
         }
     }
+    checkMessages
 
 }
 
@@ -306,6 +323,7 @@ noremap <buffer><silent> x x:TclCheckUpdate<CR>
 noremap <buffer><silent> u u:TclCheckUpdate<CR>
 noremap <buffer><silent> <C-R> <C-R>:TclCheckUpdate<CR>
 
+" augroup doesn't work for a per buffer setting
 au! * <buffer>
 au BufEnter <buffer> TclCheckUpdateForceAll
 au InsertLeave <buffer> TclCheckUpdate
@@ -313,12 +331,5 @@ au InsertEnter <buffer> TclCheckUpdate
 au BufWritePost <buffer> TclCheckUpdateForceAll
 au ColorScheme <buffer> TclCheckUpdateForceAll
 au BufLeave <buffer> ClearTclCheck
-
-" screen update not great when using signs, also TclCheckUpdate needs to be
-" faster before using these
-"au CursorHold <buffer> TclCheckUpdate
-"au CursorHoldI <buffer> TclCheckUpdate
 au CursorMovedI <buffer> TclCheckUpdate
-
-au CursorHold <buffer> TclCheckGetMessage
 au CursorMoved <buffer> TclCheckGetMessage
