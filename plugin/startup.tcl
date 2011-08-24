@@ -68,7 +68,7 @@ proc synCheck {script dbPath} {
 
 # only load once, not every call
 if {1} {
-  set dbPath "$::this_path\\syntaxdb.tcl"
+  set dbPath "$::this_path/syntaxdb.tcl"
   StartUp
   set ::Nagelfar(allDb) {}
   set ::Nagelfar(allDbView) {}
